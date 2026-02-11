@@ -1,7 +1,7 @@
 import express from 'express';
 import db from './db.js';
 import dotenv from 'dotenv';
-import keyRoutes from './routes/keyRoutes.js';
+import keyRoutes from './Routes/keyRoutes.js';
 
 dotenv.config();
 
