@@ -36,6 +36,48 @@ export const handleScan = async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 };
+export const loginFaculty = async (req, res) => {
+    // We use email as the primary identifier since you set it as the Primary Key
+    const { email, password } = req.body;
+
+    try {
+        // 1. Fetch the faculty record from the Aiven database using the email
+        const [rows] = await db.query('SELECT * FROM faculty_accounts WHERE email = ?', [email]);
+        
+        // 2. Check if the user exists
+        if (rows.length === 0) {
+            return res.status(401).json({ 
+                success: false, 
+                message: "Invalid Email or Password" 
+            });
+        }
+
+        const faculty = rows[0];
+
+        // 3. Use bcrypt to compare the plain-text password with the stored hash
+        const isMatch = await bcrypt.compare(password, faculty.password_hash);
+
+        if (!isMatch) {
+            return res.status(401).json({ 
+                success: false, 
+                message: "Invalid Email or Password" 
+            });
+        }
+
+        // 4. If authorized, return success and the faculty's username for the dashboard
+        res.json({ 
+            success: true, 
+            message: "Authentication successful"
+        });
+
+    } catch (error) {
+        // Handle any database or server connection issues
+        res.status(500).json({ 
+            success: false, 
+            error: error.message 
+        });
+    }
+};
 
 // You could also define a function here to get all logs for Meenakshi's dashboard
 export const getLogs = async (req, res) => {
