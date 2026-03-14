@@ -1,1 +1,0 @@
-mysql -h mysql-2b72be16-navomymariya20-8d58.c.aivencloud.com -P 16690 -u avnadmin -p --ssl-ca=ca.pem
