@@ -165,30 +165,47 @@ export const handleIC = async (barcode_id, rfid_tag, quantity, res) => {
 };
 
 export const loginFaculty = async (req, res) => {
-    // ... (after you verify email and password match) ...
+    const { email, password } = req.body;
 
-    // 1. Define the Payload (The data you want to store in the token)
-    const payload = {
-        email: faculty.email,
-        username: faculty.username,
-        role: 'admin' // Useful for Meenakshi's dashboard permissions
-    };
+    try {
+        // 1. Query the specific 'faculty_login' table
+        const [rows] = await db.query('SELECT * FROM faculty_login WHERE email = ?', [email]);
+        
+        if (rows.length === 0) {
+            return res.status(401).json({ success: false, message: "Faculty not found" });
+        }
 
-    // 2. Generate the Token
-    // 'YOUR_SECRET_KEY' should be a long random string in your .env file
-    const token = jwt.sign(payload, process.env.JWT_SECRET, {
-        expiresIn: '24h' // Token expires in 24 hours
-    });
+        const faculty = rows[0];
 
-    // 3. Set the HttpOnly Cookie with the real JWT
-    res.cookie('faculty_session', token, {
-        httpOnly: true,
-        secure: true,      // Required for Render (HTTPS)
-        sameSite: 'None', 
-        maxAge: 24 * 60 * 60 * 1000 
-    });
+        // 2. Compare the provided password with the 'password_hash' column
+        // If you haven't hashed them yet, use: if (password !== faculty.password_hash)
+        const isMatch = await bcrypt.compare(password, faculty.password_hash);
+        
+        if (!isMatch) {
+            return res.status(401).json({ success: false, message: "Invalid credentials" });
+        }
 
-    res.json({ success: true, message: "Login successful" });
+        // 3. Generate Token
+        const token = jwt.sign(
+            { email: faculty.email, role: 'admin' }, 
+            process.env.JWT_SECRET, 
+            { expiresIn: '24h' }
+        );
+
+        // 4. Set Cookie for Render (HTTPS compatible)
+        res.cookie('faculty_session', token, {
+            httpOnly: true,
+            secure: true, 
+            sameSite: 'None', 
+            maxAge: 24 * 60 * 60 * 1000 
+        });
+
+        res.json({ success: true, message: "Login successful" });
+
+    } catch (err) {
+        console.error("Database Error:", err);
+        res.status(500).json({ success: false, message: "Internal Server Error" });
+    }
 };
 
 // You could also define a function here to get all logs for Meenakshi's dashboard
