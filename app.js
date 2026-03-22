@@ -2,10 +2,18 @@ import express from 'express';
 import db from './db.js';
 import dotenv from 'dotenv';
 import keyRoutes from './Routes/keyRoutes.js';
+import cors from 'cors';
+
 
 dotenv.config();
 
 const app = express();
+app.use(cors({
+    origin: ["http://127.0.0.1:5500", "http://localhost:5500"], 
+    credentials: true,
+    methods: ["GET", "POST", "PUT", "DELETE"],
+    allowedHeaders: ["Content-Type", "Authorization"]
+}));
 app.use(express.json());
 app.use('/api', keyRoutes);
 app.get('/', (req, res) => {
