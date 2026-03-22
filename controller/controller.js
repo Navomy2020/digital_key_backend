@@ -1,5 +1,6 @@
 import db from '../db.js';
 import jwt from 'jsonwebtoken';
+import bcrypt from 'bcrypt';
 
 // Define the function to handle the ID + Key scan
 export const handleHardwareScan = async (req, res) => {
