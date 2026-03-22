@@ -9,7 +9,7 @@ const app = express();
 app.use(express.json());
 app.use('/api', keyRoutes);
 app.get('/', (req, res) => {
-    res.send('Digital Lab Assistant Backend is Online!')
+    res.send('Welcome to digital lab assistant!')
 });
 
 
