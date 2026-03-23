@@ -25,7 +25,7 @@ export const handleHardwareScan = async (req, res) => {
         }
 
         const {type} = registry[0];
-        console.log(registry[0]);
+        
 
         // 3. Forwarding Logic (The Dispatcher)
         if (type === 'key') {
@@ -52,7 +52,7 @@ export const handleHardwareScan = async (req, res) => {
 export const handleLabKey = async (barcode_id, rfid_tag, res) => {
 
     try {
-        console.log("Reached in the handle lab key part");
+        
         // 1. Verify Student
         const [userRows] = await db.query('SELECT barcode_id FROM users WHERE barcode_id = ?', [barcode_id]);
         if (userRows.length === 0) return res.status(404).json({ message: "Invalid Student ID" });
@@ -196,8 +196,8 @@ export const loginFaculty = async (req, res) => {
         // 4. Set Cookie for Render (HTTPS compatible)
         res.cookie('faculty_session', token, {
             httpOnly: true,
-            secure: false, 
-            sameSite: 'Lax', 
+            secure: true, 
+            sameSite: 'None', 
             maxAge: 24 * 60 * 60 * 1000 
         });
 
@@ -212,7 +212,19 @@ export const loginFaculty = async (req, res) => {
 // You could also define a function here to get all logs for Meenakshi's dashboard
 export const getKeyLogs = async (req, res) => {
     try {
-        const [rows] = await db.query('SELECT u.name, u.department, COALESCE(u.semester, "Faculty") AS semester, DATE_FORMAT(k.issue_time, "%d %b %Y, %h:%i %p") AS issue_time, l.lab_name FROM key_logs k JOIN users u ON k.user_id = u.barcode_id JOIN lab_keys l ON k.lab_id = l.rfid_tag ORDER BY k.issue_time DESC');
+        const [rows] = await db.query( `
+            SELECT 
+                u.name, 
+                u.department, 
+                COALESCE(u.semester, 'Faculty') AS semester, 
+                DATE_FORMAT(k.issue_time, '%d %b %Y, %h:%i %p') AS issue_time,
+                DATE_FORMAT(k.return_time, '%d %b %Y, %h:%i %p') AS return_time, 
+                l.lab_name 
+            FROM key_logs k 
+            JOIN users u ON k.user_id = u.barcode_id 
+            JOIN lab_keys l ON k.lab_id = l.rfid_tag 
+            ORDER BY k.issue_time DESC
+        `);
         res.json(rows);
     } catch (error) {
         res.status(500).json({ error: error.message });
@@ -220,9 +232,29 @@ export const getKeyLogs = async (req, res) => {
 };
 export const getIcLogs = async (req, res) => {
     try {
-        const [rows] = await db.query('  SELECT u.name,u.department,COALESCE(u.semester, "Faculty"),i.ic_name,il.rfid_tag,il.qty_issued,il.qty_returned,(il.qty_issued - il.qty_returned) AS balance_due,DATE_FORMAT(il.issue_time, "%d %b %Y, %h:%i %p") AS issue_time,il.return_time,il.status FROM ic_logs il JOIN users u ON il.user_id = u.barcode_id JOIN ic i ON il.rfid_tag = i.rfid_tag ORDER BY il.issue_time DESC');
+        const query = `
+            SELECT 
+                u.name, 
+                u.department, 
+                COALESCE(u.semester, 'Faculty') AS semester, 
+                i.ic_name, 
+                il.rfid_tag, 
+                il.qty_issued, 
+                il.qty_returned, 
+                (il.qty_issued - il.qty_returned) AS balance_due, 
+                DATE_FORMAT(il.issue_time, '%d %b %Y, %h:%i %p') AS issue_time, 
+                DATE_FORMAT(il.return_time, '%d %b %Y, %h:%i %p') AS return_time, 
+                il.status 
+            FROM ic_logs il 
+            JOIN users u ON il.user_id = u.barcode_id 
+            JOIN ic i ON il.rfid_tag = i.rfid_tag 
+            ORDER BY il.issue_time DESC
+        `;
+
+        const [rows] = await db.query(query);
         res.json(rows);
     } catch (error) {
+        
         res.status(500).json({ error: error.message });
     }
 };

@@ -13,6 +13,9 @@ router.get('/keylogs',verifyToken,getKeyLogs);
 router.get('/iclogs',verifyToken,getIcLogs);
 router.get('/pendingkey',verifyToken,getPendingKeys);
 router.get('/pendingic',verifyToken,getPendingIC);
+router.get('/verify-session', verifyToken, (req, res) => {
+    res.status(200).json({ success: true, message: "Authenticated" });
+});
 
 
 export default router;
