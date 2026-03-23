@@ -1,20 +1,45 @@
 import jwt from 'jsonwebtoken';
 
+import jwt from 'jsonwebtoken';
+
 export const verifyToken = (req, res, next) => {
-    // 1. Grab the token from cookies
-    const token = req.cookies.faculty_session;
+  const authHeader = req.headers.authorization;
 
-    if (!token) {
-        return res.status(403).json({ success: false, message: "Access Denied. Please login." });
+  // 1. Check if Authorization header exists
+  if (!authHeader) {
+    return res.status(403).json({
+      success: false,
+      message: "Access Denied. Please login.",
+    });
+  }
+
+  // 2. Extract token: "Bearer <token>"
+  const parts = authHeader.split(' ');
+  if (parts.length !== 2 || parts[0] !== 'Bearer') {
+    return res.status(401).json({
+      success: false,
+      message: "Invalid Authorization header format. Use 'Bearer <token>'.",
+    });
+  }
+
+  const token = parts[1];
+
+  try {
+    // 3. Verify the token
+    const verified = jwt.verify(token, process.env.JWT_SECRET);
+    req.faculty = verified; // store faculty info in request
+    next(); // proceed to route handler
+  } catch (err) {
+    if (err.name === 'TokenExpiredError') {
+      return res.status(401).json({
+        success: false,
+        message: "Token has expired.",
+      });
     }
 
-    try {
-        // 2. Verify the token using your JWT_SECRET from .env
-        const verified = jwt.verify(token, process.env.JWT_SECRET);
-        
-        req.faculty = verified; // Store faculty info in the request
-        next(); // Move to the actual getLogs function
-    } catch (err) {
-        res.status(401).json({ success: false, message: "Invalid Token" });
-    }
+    return res.status(401).json({
+      success: false,
+      message: "Invalid or malformed token.",
+    });
+  }
 };
