@@ -198,7 +198,7 @@ export const loginFaculty = async (req, res) => {
 res.cookie('faculty_session', token, {
     httpOnly: true,
     secure: true,      // Must be true for SameSite: None
-    SameSite: 'None',  // Must be 'None' (Capital N)
+    sameSite: 'None',  // Must be 'None' (Capital N)
     maxAge: 24 * 60 * 60 * 1000, // 24 hours
     partitioned: true, // Required for cross-site CHIPS in 2026
     path: '/'          // Ensures cookie is available for all routes
