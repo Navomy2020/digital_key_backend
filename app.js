@@ -10,12 +10,35 @@ dotenv.config();
 
 const app = express();
 app.set('trust proxy', 1);
-app.use(cors({
-    origin: ["http://127.0.0.1:5500", "http://localhost:5500","https://cheerful-crepe-d8c462.netlify.app"], 
-    credentials: true,
-    methods: ["GET", "POST", "PUT", "DELETE"],
-    allowedHeaders: ["Content-Type", "Authorization"]
-}));
+const allowedOrigins = [
+  "https://cheerful-crepe-d8c462.netlify.app",
+  "https://saintgits-lab-tracker-api.onrender.com",
+  "http://localhost:3000", // dev
+];
+
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error("Not allowed by CORS"));
+      }
+    },
+    credentials: true, // required for cookies + credentials: "include"
+  })
+);
+app.use((req, res, next) => {
+  res.header("Access-Control-Allow-Origin", "https://cheerful-crepe-d8c462.netlify.app");
+  res.header("Access-Control-Allow-Credentials", "true");
+  res.header("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
+  res.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
+
+  if (req.method === "OPTIONS") {
+    return res.status(200).end();
+  }
+  next();
+});
 app.use(express.json());
 app.use(cookieParser())
 app.use('/api', keyRoutes);
