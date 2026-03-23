@@ -3,6 +3,7 @@ import db from './db.js';
 import dotenv from 'dotenv';
 import keyRoutes from './Routes/keyRoutes.js';
 import cors from 'cors';
+import cookieParser from 'cookie-parser';
 
 
 dotenv.config();
@@ -15,6 +16,7 @@ app.use(cors({
     allowedHeaders: ["Content-Type", "Authorization"]
 }));
 app.use(express.json());
+app.use(cookieParser())
 app.use('/api', keyRoutes);
 app.get('/', (req, res) => {
     res.send('Welcome to digital lab assistant!')

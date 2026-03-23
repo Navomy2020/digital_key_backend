@@ -196,8 +196,8 @@ export const loginFaculty = async (req, res) => {
         // 4. Set Cookie for Render (HTTPS compatible)
         res.cookie('faculty_session', token, {
             httpOnly: true,
-            secure: true, 
-            sameSite: 'None', 
+            secure: false, 
+            sameSite: 'Lax', 
             maxAge: 24 * 60 * 60 * 1000 
         });
 
@@ -212,7 +212,7 @@ export const loginFaculty = async (req, res) => {
 // You could also define a function here to get all logs for Meenakshi's dashboard
 export const getKeyLogs = async (req, res) => {
     try {
-        const [rows] = await db.query('SELECT * FROM key_logs ORDER BY issue_time DESC');
+        const [rows] = await db.query('SELECT u.name, u.department, COALESCE(u.semester, "Faculty") AS semester, DATE_FORMAT(k.issue_time, "%d %b %Y, %h:%i %p") AS issue_time, l.lab_name FROM key_logs k JOIN users u ON k.user_id = u.barcode_id JOIN lab_keys l ON k.lab_id = l.rfid_tag ORDER BY k.issue_time DESC');
         res.json(rows);
     } catch (error) {
         res.status(500).json({ error: error.message });
@@ -220,7 +220,7 @@ export const getKeyLogs = async (req, res) => {
 };
 export const getIcLogs = async (req, res) => {
     try {
-        const [rows] = await db.query('SELECT * FROM ic_logs ORDER BY issue_time DESC');
+        const [rows] = await db.query('  SELECT u.name,u.department,COALESCE(u.semester, "Faculty"),i.ic_name,il.rfid_tag,il.qty_issued,il.qty_returned,(il.qty_issued - il.qty_returned) AS balance_due,DATE_FORMAT(il.issue_time, "%d %b %Y, %h:%i %p") AS issue_time,il.return_time,il.status FROM ic_logs il JOIN users u ON il.user_id = u.barcode_id JOIN ic i ON il.rfid_tag = i.rfid_tag ORDER BY il.issue_time DESC');
         res.json(rows);
     } catch (error) {
         res.status(500).json({ error: error.message });
@@ -253,7 +253,7 @@ export const getPendingIC = async (req, res) => {
             FROM ic_logs il
             JOIN users u ON il.user_id = u.barcode_id
             JOIN ic i ON il.rfid_tag = i.rfid_tag
-            WHERE il.status != 'completed'
+            WHERE il.status != "completed"
             ORDER BY il.issue_time DESC
         `;
 
