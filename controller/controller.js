@@ -186,7 +186,6 @@ export const loginFaculty = async (req, res) => {
       { expiresIn: '24h' }
     );
 
-    // ✅ send token in body, not as cookie
     res.json({
       success: true,
       message: "Login successful",
