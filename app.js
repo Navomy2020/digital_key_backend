@@ -16,29 +16,16 @@ const allowedOrigins = [
   "http://localhost:3000", // dev
 ];
 
-app.use(
-  cors({
-    origin: (origin, callback) => {
-      if (!origin || allowedOrigins.includes(origin)) {
-        callback(null, true);
-      } else {
-        callback(new Error("Not allowed by CORS"));
-      }
-    },
-    credentials: true, // required for cookies + credentials: "include"
-  })
-);
-app.use((req, res, next) => {
-  res.header("Access-Control-Allow-Origin", "https://cheerful-crepe-d8c462.netlify.app");
-  res.header("Access-Control-Allow-Credentials", "true");
-  res.header("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
-  res.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
+app.use(cors({
+    origin: "https://cheerful-crepe-d8c462.netlify.app", // NO trailing slash
+    credentials: true,
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"], // Explicitly allow OPTIONS
+    allowedHeaders: ["Content-Type", "Authorization"]     // Explicitly allow Authorization
+}));
+app.options('*', cors());
+// Add this right after the cors block to manually handle any lingering OPTIONS issues
+app.options('*', cors());
 
-  if (req.method === "OPTIONS") {
-    return res.status(200).end();
-  }
-  next();
-});
 app.use(express.json());
 app.use(cookieParser())
 app.use('/api', keyRoutes);
