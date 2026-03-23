@@ -194,13 +194,15 @@ export const loginFaculty = async (req, res) => {
         );
 
         // 4. Set Cookie for Render (HTTPS compatible)
-        res.cookie('faculty_session', token, {
-            httpOnly: true,
-            secure: true, 
-            sameSite: 'None', 
-            maxAge: 24 * 60 * 60 * 1000,
-            partitioned: true
-        });
+        // 4. Set Cookie for Render (HTTPS compatible)
+res.cookie('faculty_session', token, {
+    httpOnly: true,
+    secure: true,      // Must be true for SameSite: None
+    sameSite: 'None',  // Must be 'None' (Capital N)
+    maxAge: 24 * 60 * 60 * 1000, // 24 hours
+    partitioned: true, // Required for cross-site CHIPS in 2026
+    path: '/'          // Ensures cookie is available for all routes
+});
 
         res.json({ success: true, message: "Login successful" });
 
