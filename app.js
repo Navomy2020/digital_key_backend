@@ -22,9 +22,7 @@ app.use(cors({
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"], // Explicitly allow OPTIONS
     allowedHeaders: ["Content-Type", "Authorization"]     // Explicitly allow Authorization
 }));
-app.options('*', cors());
-// Add this right after the cors block to manually handle any lingering OPTIONS issues
-app.options('*', cors());
+
 
 app.use(express.json());
 app.use(cookieParser())
