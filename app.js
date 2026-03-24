@@ -12,6 +12,7 @@ const app = express();
 app.set('trust proxy', 1);
 const allowedOrigins = [
   "https://cheerful-crepe-d8c462.netlify.app",
+  "https://saintgits-lab-assistant.netlify.app",
   "https://saintgits-lab-tracker-api.onrender.com",
   "http://localhost:3000", // dev
 ];

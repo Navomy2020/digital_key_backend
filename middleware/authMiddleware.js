@@ -4,8 +4,8 @@ export const verifyToken = (req, res, next) => {
     // 1. Grab the 'Authorization' header
     const authHeader = req.headers.authorization;
 
-    // 2. Check if the header exists and starts with "Bearer "
-    // The browser sends: "Bearer eyJhbGciOiJIUzI1Ni..."
+
+
     const token = authHeader && authHeader.split(' ')[1];
 
     if (!token) {
@@ -19,10 +19,8 @@ export const verifyToken = (req, res, next) => {
         // 3. Verify the token
         const verified = jwt.verify(token, process.env.JWT_SECRET);
         
-        // 4. Attach the faculty info to the request for use in controllers
         req.faculty = verified; 
         
-        // 5. Success! Move to the next function (e.g., getIcLogs)
         next(); 
     } catch (err) {
         console.error("JWT Verification Error:", err.message);
