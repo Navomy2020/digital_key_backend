@@ -14,14 +14,21 @@ const allowedOrigins = [
   "https://cheerful-crepe-d8c462.netlify.app",
   "https://saintgits-lab-assistant.netlify.app",
   "https://saintgits-lab-tracker-api.onrender.com",
-  "http://localhost:3000", // dev
+  "https://saintgits-ic-retrieval.netlify.app"
 ];
 
 app.use(cors({
-    origin: "https://saintgits-lab-assistant.netlify.app", // NO trailing slash
+    origin: function (origin, callback) {
+        
+        if (!origin || allowedOrigins.indexOf(origin) !== -1) {
+            callback(null, true);
+        } else {
+            callback(new Error('Not allowed by CORS'));
+        }
+    },
     credentials: true,
-    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"], // Explicitly allow OPTIONS
-    allowedHeaders: ["Content-Type", "Authorization"]     // Explicitly allow Authorization
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"]
 }));
 
 
