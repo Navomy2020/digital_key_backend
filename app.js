@@ -18,7 +18,7 @@ const allowedOrigins = [
 ];
 
 app.use(cors({
-    origin: "https://cheerful-crepe-d8c462.netlify.app", // NO trailing slash
+    origin: "https://saintgits-lab-assistant.netlify.app", // NO trailing slash
     credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"], // Explicitly allow OPTIONS
     allowedHeaders: ["Content-Type", "Authorization"]     // Explicitly allow Authorization
@@ -45,5 +45,5 @@ app.get('/test-db', async (req, res) => {
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-    console.log(`Server is running on http://localhost:${PORT}`);
+    console.log(`Server is running on https://saintgits-lab-tracker-api.onrender.com ${PORT}`);
 });
