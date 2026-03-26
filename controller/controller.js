@@ -6,6 +6,7 @@ import bcrypt from 'bcrypt';
 export const handleHardwareScan = async (req, res) => {
     // 1. Extract values from the request object (Thonny/MicroPython sends these)
     const { rfid_tag, barcode_id, quantity } = req.body;
+    console.log(barcode_id,quantity);
     
 
     try {
