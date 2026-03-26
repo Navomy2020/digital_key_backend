@@ -212,7 +212,7 @@ export const getKeyLogs = async (req, res) => {
             FROM key_logs k 
             JOIN users u ON k.user_id = u.barcode_id 
             JOIN lab_keys l ON k.lab_id = l.rfid_tag 
-            WHERE DATE(k.issue_time) = CURDATE()  -- 👈 This is the Magic Line
+            WHERE DATE(k.issue_time) = CURDATE()  
             ORDER BY k.issue_time DESC
         `);
         
@@ -280,16 +280,62 @@ export const getIcLogs = async (req, res) => {
             FROM ic_logs il 
             JOIN users u ON il.user_id = u.barcode_id 
             JOIN ic i ON il.rfid_tag = i.rfid_tag 
+            WHERE DATE(il.issue_time) = CURDATE()  
             ORDER BY il.issue_time DESC
         `;
 
         const [rows] = await db.query(query);
         res.json(rows);
     } catch (error) {
-        
+        console.error("IC Logs Fetch Error:", error);
         res.status(500).json({ error: error.message });
     }
 };
+
+export const getIcLogsByDate = async (req, res) => {
+    const { date } = req.query;
+
+    try {
+        let query = `
+            SELECT 
+                u.name, 
+                u.department, 
+                COALESCE(u.semester, 'Faculty') AS semester, 
+                i.ic_name, 
+                il.rfid_tag, 
+                il.qty_issued, 
+                il.qty_returned, 
+                (il.qty_issued - il.qty_returned) AS balance_due, 
+                DATE_FORMAT(il.issue_time, '%d %b %Y, %h:%i %p') AS issue_time, 
+                DATE_FORMAT(il.return_time, '%d %b %Y, %h:%i %p') AS return_time, 
+                il.status 
+            FROM ic_logs il 
+            JOIN users u ON il.user_id = u.barcode_id 
+            JOIN ic i ON il.rfid_tag = i.rfid_tag
+        `;
+
+        let params = [];
+
+        // 2. Logic: If date provided, use it. Else, use Today (CURDATE)
+        if (date) {
+            query += ` WHERE DATE(il.issue_time) = ? `;
+            params.push(date);
+        } else {
+            query += ` WHERE DATE(il.issue_time) = CURDATE() `;
+        }
+
+        query += ` ORDER BY il.issue_time DESC `;
+
+        const [rows] = await db.query(query, params);
+        res.json(rows);
+
+    } catch (error) {
+        console.error("IC Date Fetch Error:", error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+};
+
+
 export const getPendingKeys = async(req,res)=>{
     try{
         const [rows]=await db.query('SELECT u.name, u.department, COALESCE(u.semester, "Faculty") AS semester, k.issue_time, l.lab_name FROM key_logs k JOIN users u ON k.user_id = u.barcode_id JOIN lab_keys l ON k.lab_id = l.rfid_tag WHERE k.return_time IS NULL ORDER BY k.issue_time DESC');

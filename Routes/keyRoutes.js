@@ -1,5 +1,5 @@
 import express from 'express';
-import { handleHardwareScan,loginFaculty,getKeyLogs, getIcLogs, getPendingKeys, getPendingIC, getKeyLogsByDate } from '../controller/controller.js';
+import { handleHardwareScan,loginFaculty,getKeyLogs, getIcLogs, getPendingKeys, getPendingIC, getKeyLogsByDate, getIcLogsByDate } from '../controller/controller.js';
 import { verifyToken } from '../middleware/authMiddleware.js';
 
 
@@ -17,6 +17,7 @@ router.get('/verify-session', verifyToken, (req, res) => {
     res.status(200).json({ success: true, message: "Authenticated" });
 });
 router.get('/keylogsbydate',verifyToken,getKeyLogsByDate);
+router.get('iclogsbydate',verifyToken,getIcLogsByDate)
 
 
 export default router;
