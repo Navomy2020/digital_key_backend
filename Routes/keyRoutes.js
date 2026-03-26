@@ -17,7 +17,7 @@ router.get('/verify-session', verifyToken, (req, res) => {
     res.status(200).json({ success: true, message: "Authenticated" });
 });
 router.get('/keylogsbydate',verifyToken,getKeyLogsByDate);
-router.get('iclogsbydate',verifyToken,getIcLogsByDate)
+router.get('/iclogsbydate',verifyToken,getIcLogsByDate)
 
 
 export default router;
