@@ -198,10 +198,10 @@ export const loginFaculty = async (req, res) => {
   }
 };
 
-// You could also define a function here to get all logs for Meenakshi's dashboard
+
 export const getKeyLogs = async (req, res) => {
     try {
-        const [rows] = await db.query( `
+        const [rows] = await db.query(`
             SELECT 
                 u.name, 
                 u.department, 
@@ -212,13 +212,56 @@ export const getKeyLogs = async (req, res) => {
             FROM key_logs k 
             JOIN users u ON k.user_id = u.barcode_id 
             JOIN lab_keys l ON k.lab_id = l.rfid_tag 
+            WHERE DATE(k.issue_time) = CURDATE()  -- 👈 This is the Magic Line
             ORDER BY k.issue_time DESC
         `);
+        
         res.json(rows);
     } catch (error) {
+        console.error("Database Fetch Error:", error);
         res.status(500).json({ error: error.message });
     }
 };
+
+export const getKeyLogsByDate = async (req, res) => {
+    // 1. Get the date from the query string (?date=2026-03-26)
+    const { date } = req.query;
+
+    try {
+        let query = `
+            SELECT 
+                u.name, 
+                u.department, 
+                COALESCE(u.semester, 'Faculty') AS semester, 
+                DATE_FORMAT(k.issue_time, '%d %b %Y, %h:%i %p') AS issue_time,
+                DATE_FORMAT(k.return_time, '%d %b %Y, %h:%i %p') AS return_time, 
+                l.lab_name 
+            FROM key_logs k 
+            JOIN users u ON k.user_id = u.barcode_id 
+            JOIN lab_keys l ON k.lab_id = l.rfid_tag 
+        `;
+
+        let params = [];
+
+        // 2. If a date is provided, filter by it. Otherwise, show Today.
+        if (date) {
+            query += ` WHERE DATE(k.issue_time) = ? `;
+            params.push(date);
+        } else {
+            query += ` WHERE DATE(k.issue_time) = CURDATE() `;
+        }
+
+        query += ` ORDER BY k.issue_time DESC `;
+
+        const [rows] = await db.query(query, params);
+        res.json(rows);
+
+    } catch (error) {
+        console.error("Fetch by Date Error:", error);
+        res.status(500).json({ error: error.message });
+    }
+};
+
 export const getIcLogs = async (req, res) => {
     try {
         const query = `
