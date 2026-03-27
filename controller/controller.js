@@ -2,22 +2,20 @@ import db from '../db.js';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcrypt';
 
-// Define the function to handle the ID + Key scan
+
 export const handleHardwareScan = async (req, res) => {
-    // 1. Extract values from the request object (Thonny/MicroPython sends these)
     const { rfid_tag, barcode_id, quantity } = req.body;
     console.log(barcode_id,quantity);
     
 
     try {
-        // 2. Query the tag_registry (type table) to see what this RFID is
         const [registry] = await db.query(
             'SELECT type FROM tag_registry WHERE rfid_tag = ?', 
             [rfid_tag]
         );
         
 
-        // Check if the RFID even exists in our lab
+        
         if (registry.length === 0) {
             return res.status(404).json({ 
                 success: false, 
@@ -28,14 +26,14 @@ export const handleHardwareScan = async (req, res) => {
         const {type} = registry[0];
         
 
-        // 3. Forwarding Logic (The Dispatcher)
+        
         if (type === 'key') {
             
-            // Forward to the Key Handler
+            
             return await handleLabKey(barcode_id,rfid_tag, res);
         } 
         else if (type === 'ic') {
-            // Forward to the IC Handler with the quantity
+            
             return await handleIC(barcode_id, rfid_tag, quantity, res);
         } 
         else {
@@ -54,7 +52,7 @@ export const handleLabKey = async (barcode_id, rfid_tag, res) => {
 
     try {
         
-        // 1. Verify Student
+        
         const [userRows] = await db.query('SELECT barcode_id FROM users WHERE barcode_id = ?', [barcode_id]);
         if (userRows.length === 0) return res.status(404).json({ message: "Invalid Student ID" });
 
@@ -66,16 +64,15 @@ export const handleLabKey = async (barcode_id, rfid_tag, res) => {
 
         const key = keyRows[0];
 
-        // 3. Logic: Issue or Return?
+        
         if (key.status === 'available') {
-            // ISSUE PROCESS
+            
             await db.query('INSERT INTO key_logs (user_id, lab_id, issue_time) VALUES (?, ?, NOW())', [user.barcode_id, key.rfid_tag]);
             await db.query("UPDATE lab_keys SET status = 'issued' WHERE rfid_tag = ?", [key.rfid_tag]);
             
             res.json({ success: true, action: "ISSUE", user: user.name });
         } else {
-            // RETURN PROCESS
-            // Update the log entry that is currently "open" (return_time is NULL)
+            
             await db.query('UPDATE key_logs SET return_time = NOW() WHERE lab_id = ? AND return_time IS NULL', [key.rfid_tag]);
             await db.query("UPDATE lab_keys SET status = 'available' WHERE rfid_tag = ?", [key.rfid_tag]);
 
@@ -88,7 +85,7 @@ export const handleLabKey = async (barcode_id, rfid_tag, res) => {
 
 export const handleIC = async (barcode_id, rfid_tag, quantity, res) => {
     try {
-        // 1. Verify Student and IC exists in inventory
+        
         const [userRows] = await db.query('SELECT barcode_id FROM users WHERE barcode_id = ?', [barcode_id]);
         const [icRows] = await db.query('SELECT rfid_tag, available_count FROM ic WHERE rfid_tag = ?', [rfid_tag]);
 
@@ -98,18 +95,18 @@ export const handleIC = async (barcode_id, rfid_tag, quantity, res) => {
         const user = userRows[0];
         const ic = icRows[0];
 
-        // 2. Determine Action: Check for unreturned logs
+        
         const [activeLog] = await db.query(
             "SELECT user_id, rfid_tag, qty_issued, qty_returned FROM ic_logs WHERE user_id=? AND rfid_tag=? AND status!='completed'",
             [user.barcode_id, ic.rfid_tag]
         );
 
         if (activeLog.length > 0) {
-            /** --- RETURN LOGIC --- **/
+            
             const log = activeLog[0];
             
             if ((log.qty_issued - log.qty_returned) === quantity) {
-                // Full Return
+            
                 await db.query(
                     "UPDATE ic_logs SET return_time = NOW(), status = 'completed',qty_returned=qty_returned+? WHERE user_id=? AND rfid_tag=? AND status!='completed'",
                     [quantity,barcode_id, rfid_tag]
@@ -124,21 +121,21 @@ export const handleIC = async (barcode_id, rfid_tag, quantity, res) => {
                 return res.json({ success: false, message: `you took only ${log.qty_issued-log.qty_returned}` });
             }
             else {
-                // Partial Return
+                
                 await db.query(
                     "UPDATE ic_logs SET status = 'partial',qty_returned=qty_returned+? WHERE user_id=? AND rfid_tag=? AND status!='completed'",
                     [quantity,barcode_id, rfid_tag]
                 );
-                // Note: You should also increment qty_returned here if you keep that column!
+                
                 await db.query(
                     'UPDATE ic SET issued_count = issued_count - ?, available_count = available_count + ? WHERE rfid_tag = ?',
                     [quantity, quantity, rfid_tag]
                 );
                 return res.json({ success: true, message: "Partial Return Processed." });
             } 
-        } else {
-            /** --- ISSUE LOGIC (The Lowest Else Block) --- **/
-            // 1. Check if lab has enough stock
+        } 
+        //Handles the ic issue
+        else {
             if (ic.available_count < quantity) {
                 return res.status(400).json({ 
                     success: false, 
@@ -146,13 +143,13 @@ export const handleIC = async (barcode_id, rfid_tag, quantity, res) => {
                 });
             }
 
-            // 2. Insert new row into ic_logs
+            
             await db.query(
                 "INSERT INTO ic_logs (user_id, rfid_tag, qty_issued, qty_returned, status, issue_time) VALUES (?, ?, ?, 0, 'open', NOW())",
                 [barcode_id, rfid_tag, quantity]
             );
 
-            // 3. Update the IC Inventory table
+            
             await db.query(
                 'UPDATE ic SET issued_count = issued_count + ?, available_count = available_count - ? WHERE rfid_tag = ?',
                 [quantity, quantity, rfid_tag]
@@ -206,8 +203,8 @@ export const getKeyLogs = async (req, res) => {
                 u.name, 
                 u.department, 
                 COALESCE(u.semester, 'Faculty') AS semester, 
-                DATE_FORMAT(k.issue_time, '%d %b %Y, %h:%i %p') AS issue_time,
-                DATE_FORMAT(k.return_time, '%d %b %Y, %h:%i %p') AS return_time, 
+                DATE_FORMAT(DATE_ADD(k.issue_time, INTERVAL 5 HOUR_30_MINUTE), '%d %b %Y, %h:%i %p') AS issue_time,
+                DATE_FORMAT(DATE_ADD(k.return_time, INTERVAL 5 HOUR_30_MINUTE), '%d %b %Y, %h:%i %p') AS return_time, 
                 l.lab_name 
             FROM key_logs k 
             JOIN users u ON k.user_id = u.barcode_id 
@@ -224,7 +221,7 @@ export const getKeyLogs = async (req, res) => {
 };
 
 export const getKeyLogsByDate = async (req, res) => {
-    // 1. Get the date from the query string (?date=2026-03-26)
+    
     const { date } = req.query;
 
     try {
@@ -233,8 +230,8 @@ export const getKeyLogsByDate = async (req, res) => {
                 u.name, 
                 u.department, 
                 COALESCE(u.semester, 'Faculty') AS semester, 
-                DATE_FORMAT(k.issue_time, '%d %b %Y, %h:%i %p') AS issue_time,
-                DATE_FORMAT(k.return_time, '%d %b %Y, %h:%i %p') AS return_time, 
+                DATE_FORMAT(DATE_ADD(k.issue_time, INTERVAL 5 HOUR_30_MINUTE), '%d %b %Y, %h:%i %p') AS issue_time,
+                 DATE_FORMAT(DATE_ADD(k.return_time, INTERVAL 5 HOUR_30_MINUTE), '%d %b %Y, %h:%i %p') AS return_time,
                 l.lab_name 
             FROM key_logs k 
             JOIN users u ON k.user_id = u.barcode_id 
@@ -243,7 +240,7 @@ export const getKeyLogsByDate = async (req, res) => {
 
         let params = [];
 
-        // 2. If a date is provided, filter by it. Otherwise, show Today.
+        
         if (date) {
             query += ` WHERE DATE(k.issue_time) = ? `;
             params.push(date);
@@ -316,7 +313,7 @@ export const getIcLogsByDate = async (req, res) => {
 
         let params = [];
 
-        // 2. Logic: If date provided, use it. Else, use Today (CURDATE)
+        
         if (date) {
             query += ` WHERE DATE(il.issue_time) = ? `;
             params.push(date);
@@ -347,7 +344,7 @@ export const getPendingKeys = async(req,res)=>{
 }
 export const getPendingIC = async (req, res) => {
     try {
-        // SQL Logic: Join users and ic tables to get a clear report
+        
         const query = `
             SELECT 
                 u.name,
@@ -369,7 +366,7 @@ export const getPendingIC = async (req, res) => {
 
         const [rows] = await db.query(query);
 
-        // If no pending items are found, return a friendly message
+    
         if (rows.length === 0) {
             return res.json({ message: "All ICs have been returned! The lab is clear." });
         }
