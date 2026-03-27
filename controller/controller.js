@@ -203,8 +203,9 @@ export const getKeyLogs = async (req, res) => {
                 u.name, 
                 u.department, 
                 COALESCE(u.semester, 'Faculty') AS semester, 
-                DATE_FORMAT(DATE_ADD(k.issue_time, INTERVAL 5 HOUR_30_MINUTE), '%d %b %Y, %h:%i %p') AS issue_time,
-                DATE_FORMAT(DATE_ADD(k.return_time, INTERVAL 5 HOUR_30_MINUTE), '%d %b %Y, %h:%i %p') AS return_time, 
+                DATE_FORMAT(k.issue_time, '%d %b %Y, %h:%i %p') AS issue_time
+                ,DATE_FORMAT(k.return_time, '%d %b %Y, %h:%i %p') AS return_time
+                , 
                 l.lab_name 
             FROM key_logs k 
             JOIN users u ON k.user_id = u.barcode_id 
@@ -230,8 +231,8 @@ export const getKeyLogsByDate = async (req, res) => {
                 u.name, 
                 u.department, 
                 COALESCE(u.semester, 'Faculty') AS semester, 
-                DATE_FORMAT(DATE_ADD(k.issue_time, INTERVAL 5 HOUR_30_MINUTE), '%d %b %Y, %h:%i %p') AS issue_time,
-                 DATE_FORMAT(DATE_ADD(k.return_time, INTERVAL 5 HOUR_30_MINUTE), '%d %b %Y, %h:%i %p') AS return_time,
+                DATE_FORMAT(k.issue_time, '%d %b %Y, %h:%i %p') AS issue_time,
+                DATE_FORMAT(k.return_time, '%d %b %Y, %h:%i %p') AS return_time, 
                 l.lab_name 
             FROM key_logs k 
             JOIN users u ON k.user_id = u.barcode_id 
