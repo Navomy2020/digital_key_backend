@@ -4,7 +4,7 @@ import bcrypt from 'bcrypt';
 
 
 export const handleHardwareScan = async (req, res) => {
-    const { rfid_tag, barcode_id, quantity } = req.body;
+    const { rfid_tag, barcode_id, quantity,action } = req.body;
     console.log(barcode_id,quantity);
     
 
@@ -34,7 +34,7 @@ export const handleHardwareScan = async (req, res) => {
         } 
         else if (type === 'ic') {
             
-            return await handleIC(barcode_id, rfid_tag, quantity, res);
+            return await handleIC(barcode_id, rfid_tag, quantity, action,res);
         } 
         else {
             return res.status(400).json({ 
@@ -83,7 +83,7 @@ export const handleLabKey = async (barcode_id, rfid_tag, res) => {
     }
 };
 
-export const handleIC = async (barcode_id, rfid_tag, quantity, res) => {
+export const handleIC = async (barcode_id, rfid_tag, quantity,action, res) => {
     try {
         
         const [userRows] = await db.query('SELECT barcode_id FROM users WHERE barcode_id = ?', [barcode_id]);
@@ -100,7 +100,7 @@ export const handleIC = async (barcode_id, rfid_tag, quantity, res) => {
             "SELECT user_id, rfid_tag, qty_issued, qty_returned FROM ic_logs WHERE user_id=? AND rfid_tag=? AND status!='completed'",
             [user.barcode_id, ic.rfid_tag]
         );
-
+        if(action == "return"){
         if (activeLog.length > 0) {
             
             const log = activeLog[0];
@@ -133,31 +133,50 @@ export const handleIC = async (barcode_id, rfid_tag, quantity, res) => {
                 );
                 return res.json({ success: true, message: "Partial Return Processed." });
             } 
-        } 
-        //Handles the ic issue
-        else {
-            if (ic.available_count < quantity) {
+        }
+        else{
+            return res.json({message:"You did not take any ics"});
+        } }
+        else if(action=="issue"){
+             if (ic.available_count < quantity) {
                 return res.status(400).json({ 
                     success: false, 
                     message: `Insufficient stock. Only ${ic.available_count} available.` 
                 });
             }
-
-            
+            if(activeLog.length>0){
+                const log = activeLog[0];
+                await db.query("UPDATE ic_logs SET qty_issued = qty_issued + ?, status = 'Open' WHERE user_id = ? and rfid_tag=? and status!='Completed'",
+                    [quantity, activeLog.user_id,activeLog.rfid_tag]);
+                    await db.query(
+                'UPDATE ic SET issued_count = issued_count + ?, available_count = available_count - ? WHERE rfid_tag = ?',
+                [quantity, quantity, rfid_tag]
+            );
+            return res.json({ success: true, message: `Successfully issued ${quantity} units.` });
+            }
+            else{
+                
             await db.query(
                 "INSERT INTO ic_logs (user_id, rfid_tag, qty_issued, qty_returned, status, issue_time) VALUES (?, ?, ?, 0, 'open', NOW())",
                 [barcode_id, rfid_tag, quantity]
             );
-
-            
             await db.query(
                 'UPDATE ic SET issued_count = issued_count + ?, available_count = available_count - ? WHERE rfid_tag = ?',
-                [quantity, quantity, rfid_tag]
-            );
+                [quantity, quantity, rfid_tag]);
+            
 
             return res.json({ success: true, message: `Successfully issued ${quantity} units.` });
+            }
         }
-    } catch (error) {
+    
+        
+
+            
+
+            
+            
+        }
+ catch (error) {
         console.error("Database Error:", error);
         res.status(500).json({ success: false, error: error.message });
     }
@@ -200,18 +219,19 @@ export const getKeyLogs = async (req, res) => {
     try {
         const [rows] = await db.query(`
             SELECT 
-                u.name, 
-                u.department, 
-                COALESCE(u.semester, 'Faculty') AS semester, 
-                DATE_FORMAT(k.issue_time, '%d %b %Y, %h:%i %p') AS issue_time
-                ,DATE_FORMAT(k.return_time, '%d %b %Y, %h:%i %p') AS return_time
-                , 
-                l.lab_name 
-            FROM key_logs k 
-            JOIN users u ON k.user_id = u.barcode_id 
-            JOIN lab_keys l ON k.lab_id = l.rfid_tag 
-            WHERE DATE(k.issue_time) = CURDATE()  
-            ORDER BY k.issue_time DESC
+    u.name, 
+    u.department, 
+    COALESCE(u.semester, 'Faculty') AS semester, 
+    -- Convert UTC to IST (+5:30) for display
+    DATE_FORMAT(DATE_ADD(k.issue_time, INTERVAL 5 HOUR_30_MINUTE), '%d %b %Y, %h:%i %p') AS issue_time,
+    DATE_FORMAT(DATE_ADD(k.return_time, INTERVAL 5 HOUR_30_MINUTE), '%d %b %Y, %h:%i %p') AS return_time, 
+    l.lab_name 
+FROM key_logs k 
+JOIN users u ON k.user_id = u.barcode_id 
+JOIN lab_keys l ON k.lab_id = l.rfid_tag 
+-- Ensure the CURDATE filter also respects the Indian day-switch
+WHERE DATE(DATE_ADD(k.issue_time, INTERVAL 5 HOUR_30_MINUTE)) = DATE(DATE_ADD(NOW(), INTERVAL 5 HOUR_30_MINUTE))
+ORDER BY k.issue_time DESC;
         `);
         
         res.json(rows);
@@ -227,16 +247,19 @@ export const getKeyLogsByDate = async (req, res) => {
 
     try {
         let query = `
-            SELECT 
-                u.name, 
-                u.department, 
-                COALESCE(u.semester, 'Faculty') AS semester, 
-                DATE_FORMAT(k.issue_time, '%d %b %Y, %h:%i %p') AS issue_time,
-                DATE_FORMAT(k.return_time, '%d %b %Y, %h:%i %p') AS return_time, 
-                l.lab_name 
-            FROM key_logs k 
-            JOIN users u ON k.user_id = u.barcode_id 
-            JOIN lab_keys l ON k.lab_id = l.rfid_tag 
+        SELECT 
+    u.name, 
+    u.department, 
+    COALESCE(u.semester, 'Faculty') AS semester, 
+    -- Convert issue_time to IST (+5:30)
+    DATE_FORMAT(DATE_ADD(k.issue_time, INTERVAL 5 HOUR_30_MINUTE), '%d %b %Y, %h:%i %p') AS issue_time,
+    -- Convert return_time to IST (+5:30)
+    DATE_FORMAT(DATE_ADD(k.return_time, INTERVAL 5 HOUR_30_MINUTE), '%d %b %Y, %h:%i %p') AS return_time, 
+    l.lab_name 
+FROM key_logs k 
+JOIN users u ON k.user_id = u.barcode_id 
+JOIN lab_keys l ON k.lab_id = l.rfid_tag 
+ORDER BY k.issue_time DESC;
         `;
 
         let params = [];
@@ -264,22 +287,24 @@ export const getIcLogs = async (req, res) => {
     try {
         const query = `
             SELECT 
-                u.name, 
-                u.department, 
-                COALESCE(u.semester, 'Faculty') AS semester, 
-                i.ic_name, 
-                il.rfid_tag, 
-                il.qty_issued, 
-                il.qty_returned, 
-                (il.qty_issued - il.qty_returned) AS balance_due, 
-                DATE_FORMAT(il.issue_time, '%d %b %Y, %h:%i %p') AS issue_time, 
-                DATE_FORMAT(il.return_time, '%d %b %Y, %h:%i %p') AS return_time, 
-                il.status 
-            FROM ic_logs il 
-            JOIN users u ON il.user_id = u.barcode_id 
-            JOIN ic i ON il.rfid_tag = i.rfid_tag 
-            WHERE DATE(il.issue_time) = CURDATE()  
-            ORDER BY il.issue_time DESC
+    u.name, 
+    u.department, 
+    COALESCE(u.semester, 'Faculty') AS semester, 
+    i.ic_name, 
+    il.rfid_tag, 
+    il.qty_issued, 
+    il.qty_returned, 
+    (il.qty_issued - il.qty_returned) AS balance_due, 
+    -- Convert UTC to IST (+5:30)
+    DATE_FORMAT(DATE_ADD(il.issue_time, INTERVAL 5 HOUR_30_MINUTE), '%d %b %Y, %h:%i %p') AS issue_time, 
+    DATE_FORMAT(DATE_ADD(il.return_time, INTERVAL 5 HOUR_30_MINUTE), '%d %b %Y, %h:%i %p') AS return_time, 
+    il.status 
+FROM ic_logs il 
+JOIN users u ON il.user_id = u.barcode_id 
+JOIN ic i ON il.rfid_tag = i.rfid_tag 
+-- Match "Today" in Indian Time
+WHERE DATE(DATE_ADD(il.issue_time, INTERVAL 5 HOUR_30_MINUTE)) = DATE(DATE_ADD(NOW(), INTERVAL 5 HOUR_30_MINUTE))
+ORDER BY il.issue_time DESC;
         `;
 
         const [rows] = await db.query(query);
@@ -294,22 +319,24 @@ export const getIcLogsByDate = async (req, res) => {
     const { date } = req.query;
 
     try {
-        let query = `
-            SELECT 
-                u.name, 
-                u.department, 
-                COALESCE(u.semester, 'Faculty') AS semester, 
-                i.ic_name, 
-                il.rfid_tag, 
-                il.qty_issued, 
-                il.qty_returned, 
-                (il.qty_issued - il.qty_returned) AS balance_due, 
-                DATE_FORMAT(il.issue_time, '%d %b %Y, %h:%i %p') AS issue_time, 
-                DATE_FORMAT(il.return_time, '%d %b %Y, %h:%i %p') AS return_time, 
-                il.status 
-            FROM ic_logs il 
-            JOIN users u ON il.user_id = u.barcode_id 
-            JOIN ic i ON il.rfid_tag = i.rfid_tag
+        let query = `SELECT 
+    u.name, 
+    u.department, 
+    COALESCE(u.semester, 'Faculty') AS semester, 
+    i.ic_name, 
+    il.rfid_tag, 
+    il.qty_issued, 
+    il.qty_returned, 
+    (il.qty_issued - il.qty_returned) AS balance_due, 
+    -- Convert issue_time to IST (+5:30)
+    DATE_FORMAT(DATE_ADD(il.issue_time, INTERVAL 5 HOUR_30_MINUTE), '%d %b %Y, %h:%i %p') AS issue_time, 
+    -- Convert return_time to IST (+5:30)
+    DATE_FORMAT(DATE_ADD(il.return_time, INTERVAL 5 HOUR_30_MINUTE), '%d %b %Y, %h:%i %p') AS return_time, 
+    il.status 
+FROM ic_logs il 
+JOIN users u ON il.user_id = u.barcode_id 
+JOIN ic i ON il.rfid_tag = i.rfid_tag
+ORDER BY il.issue_time DESC;
         `;
 
         let params = [];
