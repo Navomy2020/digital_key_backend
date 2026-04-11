@@ -147,7 +147,7 @@ export const handleIC = async (barcode_id, rfid_tag, quantity,action, res) => {
             if(activeLog.length>0){
                 const log = activeLog[0];
                 await db.query("UPDATE ic_logs SET qty_issued = qty_issued + ?, status = 'Open' WHERE user_id = ? and rfid_tag=? and status!='Completed'",
-                    [quantity, activeLog.user_id,activeLog.rfid_tag]);
+                    [quantity, log.user_id,log.rfid_tag]);
                     await db.query(
                 'UPDATE ic SET issued_count = issued_count + ?, available_count = available_count - ? WHERE rfid_tag = ?',
                 [quantity, quantity, rfid_tag]
